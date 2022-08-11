@@ -2,7 +2,7 @@ use benimator::FrameRate;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::{ship::energy::EnergyBundle, Animation, AnimationState};
+use crate::{player::Player, ship::energy::EnergyBundle, Animation, AnimationState};
 
 pub mod energy;
 pub use energy::Energy;
@@ -39,6 +39,7 @@ pub fn spawn_ship(
     commands
         .spawn()
         .insert(Ship)
+        .insert(ActiveEvents::COLLISION_EVENTS)
         .insert_bundle(SpriteBundle {
             texture: asset_server.load(ship_config.ship_sprite),
             ..default()
@@ -132,7 +133,7 @@ pub struct ShipPlugin;
 
 impl Plugin for ShipPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(show_exhaust);
+        app.add_system(show_exhaust).add_system(collision_event);
     }
 }
 
@@ -144,6 +145,23 @@ fn show_exhaust(
         for &v in children.iter() {
             let mut v = exhaust.get_mut(v).unwrap();
             v.is_visible = f.0;
+        }
+    }
+}
+
+fn collision_event(
+    mut commands: Commands,
+    mut collisions: EventReader<CollisionEvent>,
+    mut ship_energy: Query<&mut Energy, With<Player>>,
+) {
+    for e in collisions.iter() {
+        info!("{:?}", e);
+        match e {
+            CollisionEvent::Started(_, e1, _) => {
+                commands.entity(*e1).despawn();
+                (*ship_energy.single_mut()).increase(10.0);
+            }
+            _ => {}
         }
     }
 }

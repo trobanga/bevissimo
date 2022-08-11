@@ -2,16 +2,16 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-#[derive(Component, Reflect)]
+#[derive(Component)]
 pub struct Energy {
     pub max: f32,
     pub current: f32,
 }
 
-#[derive(Component, Reflect)]
+#[derive(Component)]
 pub struct EnergyDecay(pub f32);
 
-#[derive(Component, Reflect)]
+#[derive(Component)]
 pub struct EnergyTimer(pub Timer);
 
 impl Default for EnergyTimer {
@@ -47,25 +47,24 @@ impl Energy {
 }
 
 fn decay(energy: &mut Energy, decay: &EnergyDecay) {
-    if energy.current > 0.0 {
-        energy.current -= decay.0;
-        if energy.current < 0.0 {
-            energy.current = 0.0;
-        }
+    energy.current -= decay.0;
+    if energy.current < 0.0 {
+        energy.current = 0.0;
     }
 }
+
 pub struct EnergyPlugin;
 
 impl Plugin for EnergyPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(tick).add_system(handle_timer);
+        app.add_system(tick);
     }
 }
 
 fn tick(mut q: Query<(&mut Energy, &EnergyDecay, &mut EnergyTimer)>, time: Res<Time>) {
     for (mut e, d, mut t) in q.iter_mut() {
         t.0.tick(time.delta());
-        if t.0.just_finished() {
+        if t.0.just_finished() && e.current > 0.0 {
             decay(&mut e, &d);
         }
     }

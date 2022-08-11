@@ -2,13 +2,10 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 
-use crate::{
-    ship::{spawn_ship, Accelerating, Acceleration, Energy, ShipConfig},
-    Scoreboard,
-};
+use crate::ship::{spawn_ship, Accelerating, Acceleration, ShipConfig};
 use bevy_rapier2d::prelude::*;
 
-#[derive(Component, Reflect)]
+#[derive(Component)]
 pub struct Player;
 
 fn spawn_player(
@@ -26,38 +23,14 @@ fn spawn_player(
     };
 
     let ship = spawn_ship(ship_config, &mut commands, &asset_server, &mut textures);
-    commands
-        .entity(ship)
-        .insert(Player)
-        .insert(ActiveEvents::COLLISION_EVENTS);
+    commands.entity(ship).insert(Player);
 }
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        // app.register_type::<Player>();
-        app.add_startup_system(spawn_player)
-            .add_system(move_player)
-            .add_system(collision_event);
-    }
-}
-
-fn collision_event(
-    mut commands: Commands,
-    mut collisions: EventReader<CollisionEvent>,
-    mut scoreboard: ResMut<Scoreboard>,
-    mut ship_energy: Query<&mut Energy, With<Player>>,
-) {
-    for e in collisions.iter() {
-        match e {
-            CollisionEvent::Started(_, e1, _) => {
-                commands.entity(*e1).despawn();
-                scoreboard.score += 1;
-                (*ship_energy.single_mut()).increase(10.0);
-            }
-            _ => {}
-        }
+        app.add_startup_system(spawn_player).add_system(move_player);
     }
 }
 

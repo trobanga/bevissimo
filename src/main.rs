@@ -2,9 +2,9 @@ use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowMode};
 use bevy_rapier2d::plugin::RapierConfiguration;
 use bevy_rapier2d::prelude::*;
-use rand::Rng;
 
 mod hud;
+mod orb;
 mod player;
 mod ship;
 
@@ -38,18 +38,14 @@ fn main() {
         .add_plugin(hud::HudPlugin)
         .add_plugin(ship::ShipPlugin)
         .add_plugin(ship::energy::EnergyPlugin)
+        .add_plugin(orb::OrbPlugin)
         .add_startup_system(setup_camera)
-        .add_system(bevy::window::close_on_esc)
         .add_startup_system(setup)
-        // .add_system_set(SystemSet::on_enter(GameState::Setup).with_system(setup))
-        .add_system_set(SystemSet::on_enter(GameState::Playing).with_system(spawn_orb))
+        .add_system(bevy::window::close_on_esc)
         .add_system(animate)
         .add_system(update_scoreboard)
         .run();
 }
-
-#[derive(Default, Component)]
-struct Orb;
 
 fn setup_camera(mut commands: Commands) {
     commands.spawn_bundle(Camera2dBundle::default());
@@ -104,27 +100,6 @@ fn setup(
     );
 
     let _ = state.overwrite_set(GameState::Playing);
-}
-
-fn spawn_orb(mut commands: Commands, windows: Res<Windows>, asset_server: Res<AssetServer>) {
-    let width = windows.primary().width();
-    let height = windows.primary().height();
-    let mut rng = rand::thread_rng();
-    commands
-        .spawn()
-        .insert(Orb)
-        .insert_bundle(SpriteBundle {
-            transform: Transform::from_xyz(
-                rng.gen_range(-0.5..0.5) * width,
-                rng.gen_range(-0.5..0.5) * height,
-                0.0,
-            ),
-            texture: asset_server.load("orbs/Airless.png"),
-            ..default()
-        })
-        .insert(RigidBody::Dynamic)
-        .insert(Collider::ball(32.0))
-        .insert(Sensor);
 }
 
 fn animate(
