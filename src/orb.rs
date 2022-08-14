@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
 
-use crate::GameState;
+use crate::{components::Hp, ship::Ship, GameState};
 
 struct OrbConfig {
     max_orbs: usize,
@@ -16,7 +16,7 @@ struct OrbHandles {
 }
 
 #[derive(Default, Debug, Component)]
-struct Orb;
+pub struct Orb;
 
 #[derive(Component)]
 pub struct OrbTimer(pub Timer);
@@ -31,7 +31,8 @@ impl Plugin for OrbPlugin {
             .add_system_set(
                 SystemSet::on_update(GameState::Playing)
                     .with_system(tick)
-                    .with_system(collision),
+                    .with_system(collision)
+                    .with_system(hp),
             );
     }
 }
@@ -70,13 +71,14 @@ fn collision(
     mut commands: Commands,
     mut collisions: EventReader<CollisionEvent>,
     orbs: Query<&Orb>,
+    ships: Query<&Ship>,
 ) {
     for collision in collisions.iter() {
         if let CollisionEvent::Started(e0, e1, _) = collision {
-            if orbs.contains(*e1) {
+            if orbs.contains(*e1) && ships.contains(*e0) {
                 commands.entity(*e1).despawn();
-            } else if orbs.contains(*e0) {
-                commands.entity(*e1).despawn();
+            } else if orbs.contains(*e0) && ships.contains(*e1) {
+                commands.entity(*e0).despawn();
             }
         }
     }
@@ -90,6 +92,7 @@ fn spawn_orb(commands: &mut Commands, windows: &Res<Windows>, handles: &Res<OrbH
     commands
         .spawn()
         .insert(Orb)
+        .insert(Hp(10.0))
         .insert_bundle(SpriteBundle {
             transform: Transform::from_xyz(
                 rng.gen_range(-0.5..0.5) * width,
@@ -102,4 +105,12 @@ fn spawn_orb(commands: &mut Commands, windows: &Res<Windows>, handles: &Res<OrbH
         .insert(RigidBody::Dynamic)
         .insert(Collider::ball(32.0))
         .insert(Sensor);
+}
+
+fn hp(mut commands: Commands, hp: Query<(Entity, &Hp), With<Orb>>) {
+    for (e, hp) in hp.iter() {
+        if hp.0 < 0.0 {
+            commands.entity(e).despawn();
+        }
+    }
 }

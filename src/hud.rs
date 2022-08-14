@@ -114,7 +114,6 @@ fn update(
     mut energy_bar: Query<&mut Transform, With<EnergyBar>>,
 ) {
     for e in energy.iter() {
-        info!("current energy: {:?}", e.current());
         let mut transform = energy_bar.single_mut();
         transform.scale = Vec3::new(
             e.current_percentage() * (1.0 - 2.0 * BORDER_SIZE / OUTER_WIDTH),
@@ -131,10 +130,8 @@ fn resize_notificator(
     let mut reader = resize_event.get_reader();
 
     for e in reader.iter(&resize_event) {
-        println!("width = {} height = {}", e.width, e.height);
         let (x, y) = calculate_position(e.width, e.height);
         for mut pos in positions.iter_mut() {
-            info!("{:?}", pos);
             pos.translation = Vec3::from((x, y, Z_POS));
         }
     }

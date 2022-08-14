@@ -2,7 +2,13 @@ use benimator::FrameRate;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::{player::Player, ship::energy::EnergyBundle, Animation, AnimationState};
+use crate::{
+    orb::Orb,
+    player::Player,
+    ship::energy::EnergyBundle,
+    weapon::{self, Damage, FireRate, ProjectileSpeed, Weapon, WeaponBundle},
+    Animation, AnimationState,
+};
 
 pub mod energy;
 pub use energy::Energy;
@@ -28,7 +34,10 @@ pub struct Exhaust;
 pub struct Acceleration(pub f32);
 
 #[derive(Component)]
-pub struct Accelerating(pub bool);
+pub struct Accelerate;
+
+#[derive(Component)]
+pub struct FireWeapon;
 
 pub fn spawn_ship(
     ship_config: ShipConfig,
@@ -45,7 +54,6 @@ pub fn spawn_ship(
             ..default()
         })
         .insert(Acceleration(ship_config.acceleration))
-        .insert(Accelerating(false))
         .insert_bundle(EnergyBundle {
             energy: Energy {
                 max: ship_config.max_energy,
@@ -61,7 +69,19 @@ pub fn spawn_ship(
                 asset_server,
                 textures,
             ))
+            .insert(Transform::from_translation(Vec3 {
+                x: 0.0,
+                y: -85.0,
+                z: 0.0,
+            }))
             .insert(Exhaust);
+
+            p.spawn_bundle(WeaponBundle {
+                fire_rate: FireRate::new(5.0),
+                damage: Damage(1.3),
+                speed: ProjectileSpeed(250.0),
+                ..Default::default()
+            });
         })
         .id()
 }
@@ -93,11 +113,6 @@ impl ExhaustAnimationBundle {
                     3,
                     1,
                 )),
-                transform: Transform::from_translation(Vec3 {
-                    x: 0.0,
-                    y: -85.0,
-                    z: 0.0,
-                }),
                 visibility: Visibility { is_visible: false },
                 ..Default::default()
             },
@@ -133,35 +148,88 @@ pub struct ShipPlugin;
 
 impl Plugin for ShipPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(show_exhaust).add_system(collision_event);
+        app.add_system(show_exhaust)
+            .add_system(collision_event)
+            .add_system(remove_exhaust)
+            .add_system(fire_weapon)
+            .add_system(stop_fire_weapon);
     }
 }
 
 fn show_exhaust(
-    q: Query<(&Accelerating, (&Ship, &Children)), Changed<Accelerating>>,
+    q: Query<(&Accelerate, &Children), Added<Accelerate>>,
     mut exhaust: Query<&mut Visibility, With<Exhaust>>,
 ) {
-    for (f, (_, children)) in q.iter() {
+    for (_, children) in q.iter() {
         for &v in children.iter() {
-            let mut v = exhaust.get_mut(v).unwrap();
-            v.is_visible = f.0;
+            if let Ok(mut v) = exhaust.get_mut(v) {
+                v.is_visible = true;
+            }
+        }
+    }
+}
+
+fn remove_exhaust(
+    q: RemovedComponents<Accelerate>,
+    ship: Query<(&Ship, &Children)>,
+    mut exhaust: Query<&mut Visibility, With<Exhaust>>,
+) {
+    for e in q.iter() {
+        let (_, children) = ship.get(e).unwrap();
+        for &v in children.iter() {
+            if let Ok(mut v) = exhaust.get_mut(v) {
+                v.is_visible = false;
+            }
         }
     }
 }
 
 fn collision_event(
-    mut commands: Commands,
     mut collisions: EventReader<CollisionEvent>,
-    mut ship_energy: Query<&mut Energy, With<Player>>,
+    mut ship_energy: Query<(&Ship, &mut Energy), With<Player>>,
+    orbs: Query<&Orb>,
 ) {
-    for e in collisions.iter() {
-        info!("{:?}", e);
-        match e {
-            CollisionEvent::Started(_, e1, _) => {
-                commands.entity(*e1).despawn();
-                (*ship_energy.single_mut()).increase(10.0);
+    for collision in collisions.iter() {
+        if let CollisionEvent::Started(e0, e1, _) = collision {
+            if let Ok((_, mut energy)) = ship_energy.get_mut(*e0) {
+                if let Ok(_) = orbs.get(*e1) {
+                    (*energy).increase(10.0);
+                }
+            } else if let Ok((_, mut energy)) = ship_energy.get_mut(*e1) {
+                if let Ok(_) = orbs.get(*e0) {
+                    (*energy).increase(10.0);
+                }
             }
-            _ => {}
+        }
+    }
+}
+
+fn fire_weapon(
+    mut commands: Commands,
+    ship: Query<(&Ship, &FireWeapon, &Children), Added<FireWeapon>>,
+    weapon: Query<&Weapon>,
+) {
+    for (_, _, children) in ship.iter() {
+        for &c in children {
+            if let Ok(_) = weapon.get(c) {
+                commands.entity(c).insert(weapon::FireWeapon);
+            }
+        }
+    }
+}
+
+fn stop_fire_weapon(
+    mut commands: Commands,
+    q: RemovedComponents<FireWeapon>,
+    ship: Query<(&Ship, &Children)>,
+    weapon: Query<&Weapon>,
+) {
+    for e in q.iter() {
+        let (_, children) = ship.get(e).unwrap();
+        for &c in children {
+            if let Ok(_) = weapon.get(c) {
+                commands.entity(c).remove::<weapon::FireWeapon>();
+            }
         }
     }
 }

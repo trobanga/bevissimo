@@ -1,8 +1,9 @@
-use std::f32::consts::PI;
-
 use bevy::prelude::*;
 
-use crate::ship::{spawn_ship, Accelerating, Acceleration, ShipConfig};
+use crate::{
+    ship::{spawn_ship, Accelerate, Acceleration, FireWeapon, Ship, ShipConfig},
+    utils,
+};
 use bevy_rapier2d::prelude::*;
 
 #[derive(Component)]
@@ -30,51 +31,45 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(spawn_player).add_system(move_player);
+        app.add_startup_system(spawn_player)
+            .add_system_to_stage(CoreStage::PreUpdate, user_input);
     }
 }
 
-fn move_player(
+fn user_input(
+    mut commands: Commands,
     keyboard_input: Res<Input<KeyCode>>,
-    transforms: Query<&Transform, With<Player>>,
+    transforms: Query<&Transform, (With<Player>, With<Ship>)>,
     mut ext_forces: Query<&mut ExternalForce, With<Player>>,
     mut velocities: Query<&mut Velocity, With<Player>>,
     acceleration: Query<&Acceleration, With<Player>>,
-    mut accelerating: Query<&mut Accelerating, With<Player>>,
+    ship: Query<(Entity, &Ship), With<Player>>,
 ) {
     let mut force = ext_forces.single_mut();
 
-    if keyboard_input.pressed(KeyCode::Left) {
+    if keyboard_input.pressed(KeyCode::A) {
         force.torque = 1.0;
-    } else if keyboard_input.pressed(KeyCode::Right) {
+    } else if keyboard_input.pressed(KeyCode::D) {
         force.torque = -1.0;
-    } else if keyboard_input.just_released(KeyCode::Left)
-        || keyboard_input.just_released(KeyCode::Right)
-    {
+    } else if keyboard_input.just_released(KeyCode::A) || keyboard_input.just_released(KeyCode::D) {
         force.torque = 0.0;
         velocities.single_mut().angvel = 0.0;
     }
 
-    if keyboard_input.pressed(KeyCode::Up) {
-        let (dx, dy) = direction(&transforms.single());
+    if keyboard_input.pressed(KeyCode::W) {
+        let (dx, dy) = utils::direction(&transforms.single());
         let a = acceleration.single().0;
         let (dx, dy) = (a * dx, a * dy);
-        force.force = Vec2 { x: -dx, y: dy };
-        (*accelerating.single_mut()).0 = true;
-    } else if keyboard_input.just_released(KeyCode::Up)
-        || keyboard_input.just_released(KeyCode::Down)
-    {
+        force.force = Vec2 { x: dx, y: dy };
+        commands.entity(ship.single().0).insert(Accelerate);
+    } else if keyboard_input.just_released(KeyCode::W) {
         force.force = Vec2::ZERO;
-        (*accelerating.single_mut()).0 = false;
+        commands.entity(ship.single().0).remove::<Accelerate>();
     }
-}
 
-fn direction(transform: &Transform) -> (f32, f32) {
-    let rot = transform.rotation;
-    let rot = if rot.z >= 0.0 {
-        rot.angle_between(Quat::IDENTITY)
-    } else {
-        2.0 * PI - rot.angle_between(Quat::IDENTITY)
-    };
-    rot.sin_cos()
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        commands.entity(ship.single().0).insert(FireWeapon);
+    } else if keyboard_input.just_released(KeyCode::Space) {
+        commands.entity(ship.single().0).remove::<FireWeapon>();
+    }
 }
