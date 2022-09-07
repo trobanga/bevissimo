@@ -7,31 +7,33 @@ use crate::{
 use bevy_rapier2d::prelude::*;
 
 #[derive(Component)]
-pub struct Player;
-
-fn spawn_player(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut textures: ResMut<Assets<TextureAtlas>>,
-) {
-    let ship_config = ShipConfig {
-        acceleration: 140.0,
-        ship_sprite: "ships/1.png",
-        exhaust_sprite_sheet: "ships/exhaust/exhaust1.png",
-        max_energy: 100.0,
-        energy_decay: 0.8,
-        energy_start_value: 5.0,
-    };
-
-    let ship = spawn_ship(ship_config, &mut commands, &asset_server, &mut textures);
-    commands.entity(ship).insert(Player);
+pub struct Player {
+    pub handle: usize,
 }
+
+// fn spawn_player(
+//     mut commands: Commands,
+//     asset_server: Res<AssetServer>,
+//     mut textures: ResMut<Assets<TextureAtlas>>,
+// ) {
+//     let ship_config = ShipConfig {
+//         acceleration: 140.0,
+//         ship_sprite: "ships/1.png",
+//         exhaust_sprite_sheet: "ships/exhaust/exhaust1.png",
+//         max_energy: 100.0,
+//         energy_decay: 0.8,
+//         energy_start_value: 5.0,
+//     };
+
+//     let ship = spawn_ship(ship_config, &mut commands, &asset_server, &mut textures);
+//     commands.entity(ship).insert(Player);
+// }
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(spawn_player)
+        app //.add_startup_system(spawn_player)
             .add_system_to_stage(CoreStage::PreUpdate, user_input);
     }
 }
