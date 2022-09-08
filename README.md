@@ -5,7 +5,7 @@ At the current stage I'm working on the netcode.
 The current version works for exactly two players, well participants as there is no game yet...
 
 ## Testing
-Start the signaling server (matchmaker)[https://github.com/trobanga/bevy_netcode/tree/main/matchmaker] and add two users.
+Start the signaling server [matchmaker](https://github.com/trobanga/bevy_netcode/tree/main/matchmaker) and add two users.
 
 To start bevissimo and login as alice:
 ``` sh
