@@ -26,3 +26,7 @@ runner = "wasm-server-runner"
 # In most cases the gains are negligible, but if you are on macos and have slow compile times you should see significant gains.
 #[profile.dev]
 #debug = 1
+
+# [patch.crates-io]
+# ggrs = { path = "../ggrs" }
+# bevy_ggrs = { path = "../bevy_ggrs" }
